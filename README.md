@@ -1,6 +1,6 @@
 # Status
 
-![job status](https://gitlab.eecis.udel.edu/clause/471c/badges/main/pipeline.svg?ignore_skipped=true)
+[![.github/workflows/ci.yml](https://github.com/clause/471c/actions/workflows/ci.yml/badge.svg)](https://github.com/clause/471c/actions/workflows/ci.yml)
 ![coverage](https://gitlab.eecis.udel.edu/clause/471c/badges/main/coverage.svg?job=pytest)
 
 # Contributing 
