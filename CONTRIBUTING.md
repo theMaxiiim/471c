@@ -20,7 +20,9 @@ We use UV for dependency management, running tests, and pre-commit hooks.
 
 5. Link [CodeCov](https://about.codecov.io/) to your GitHub account (login to codecov using your github credentials).
 
-6. Update the badge URLs in README.md by replacing `clause` with `<NAMESPACE>` and `471c` with `<PROJECT>`
+6. Update the badge URLs in README.md by replacing `clause` with `<NAMESPACE>` and `471c` with `<PROJECT>`.
+
+7. Enable workflows for your fork by accessing the "actions" tab.
 
 ## Install project dependencies
 
@@ -62,7 +64,7 @@ Type annotations are required for all functions, methods, and class attributes w
 
 # Testing & Coverage
 
-All contributions must be tested and tests must be executable via `uv run pytest`. Code coverage is reported and 100% branch coverage is expected. Pragmas may be used to work around tool limitations (e.g., `#pragma: no branch` with `match`) but other adjustments should onlt be used as a last effort and must be clearly explained.
+All contributions must be tested and tests must be executable via `uv run pytest`. Code coverage is reported and 100% branch coverage is expected. Pragmas may be used to work around tool limitations (e.g., `#pragma: no branch` with `match`) but other adjustments should only be used as a last effort and must be clearly explained.
 
 Note, that a high-level of coverage should be viewed as a sanity check (low coverage is a bad sign but don't assume high coverage means correctness). Compiler passes are complex and require careful test design to achieve confidence in their correctness.
 
