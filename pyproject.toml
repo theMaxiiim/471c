@@ -5,6 +5,9 @@ description = "Add your description here"
 authors = [{ name = "James Clause", email = "clause@udel.edu" }]
 readme = "README.md"
 requires-python = ">=3.14"
+dependencies = [
+    "pydantic>=2.12.5",
+]
 
 [dependency-groups]
 dev = [
