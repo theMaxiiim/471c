@@ -48,6 +48,12 @@ def check_term(
             if duplicates:
                 raise ValueError(f"duplicate binders: {duplicates}")
 
+            for name, value in bindings:
+                if not isinstance(value, Abstract):
+                    raise ValueError(f"letrec binding '{name} must be a function literal, got {value.tag}'")
+
+            # we need to make sure that we are only using a term that is suspended (like Abstract, otherwise we get an illogical sequence)
+
             local = dict.fromkeys([name for name, _ in bindings])
 
             for name, value in bindings:
@@ -73,8 +79,12 @@ def check_term(
             for argument in arguments:
                 recur(argument)
 
-        case Immediate(value=_value):
-            pass
+        case Immediate(value=value):
+            """
+            Although, we have a data validation stage during lexing/parsning (through pydantic), we ought to consider enforcing a clear delineation
+            of duties. Per the "16-Semantic-Analysis.pdf," semantic analysis is the stage concernced with type checking.
+            """
+            # isinstance(value, int)
 
         case Primitive(operator=_operator, left=left, right=right):
             recur(left)
@@ -87,6 +97,7 @@ def check_term(
             recur(otherwise)
 
         case Allocate(count=_count):
+            # Type checking handled by Pydantic (lexing/parsing stage?) -- this approach seems at odds with the theoretical model presented in class
             pass
 
         case Load(base=base, index=_index):

@@ -102,6 +102,19 @@ def test_check_term_letrec_duplicate_binders():
         check_term(term, context)
 
 
+def test_check_term_let_literal():
+    term = LetRec(
+        bindings=[("x", Primitive(operator="+", left=Reference(name="x"), right=Immediate(value=1)))],
+        body=Reference(name="x"),
+    )
+    # if you are using LetRec, why are you evaluating a Primitive, use Let instead. Otherwise, wrap it in an Abstract for later execution
+
+    context: Context = {}
+
+    with pytest.raises(ValueError):
+        check_term(term, context)
+
+
 def test_check_term_reference_bound():
     term = Reference(name="x")
 
