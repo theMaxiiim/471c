@@ -60,7 +60,6 @@ def test_check_term_let_duplicate_binders():
         check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_letrec():
     term = LetRec(
         bindings=[
@@ -74,7 +73,6 @@ def test_check_term_letrec():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_letrec_scope():
     term = LetRec(
         bindings=[
@@ -89,7 +87,6 @@ def test_check_term_letrec_scope():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_letrec_duplicate_binders():
     term = LetRec(
         bindings=[
@@ -105,7 +102,6 @@ def test_check_term_letrec_duplicate_binders():
         check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_reference_bound():
     term = Reference(name="x")
 
@@ -116,7 +112,6 @@ def test_check_term_reference_bound():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_reference_free():
     term = Reference(name="x")
 
@@ -126,7 +121,6 @@ def test_check_term_reference_free():
         check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_abstract():
     term = Abstract(
         parameters=["x"],
@@ -138,7 +132,6 @@ def test_check_term_abstract():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_abstract_duplicate_parameters():
     term = Abstract(
         parameters=["x", "x"],
@@ -151,7 +144,6 @@ def test_check_term_abstract_duplicate_parameters():
         check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_apply():
     term = Apply(
         target=Reference(name="x"),
@@ -165,7 +157,6 @@ def test_check_term_apply():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_immediate():
     term = Immediate(value=0)
 
@@ -174,7 +165,6 @@ def test_check_term_immediate():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_primitive():
     term = Primitive(
         operator="+",
@@ -187,7 +177,6 @@ def test_check_term_primitive():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_branch():
     term = Branch(
         operator="<",
@@ -202,7 +191,6 @@ def test_check_term_branch():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_allocate():
     term = Allocate(count=0)
 
@@ -211,7 +199,6 @@ def test_check_term_allocate():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_load():
     term = Load(
         base=Reference(name="x"),
@@ -225,7 +212,6 @@ def test_check_term_load():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_store():
     term = Store(
         base=Reference(name="x"),
@@ -240,7 +226,6 @@ def test_check_term_store():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_term_begin():
     term = Begin(
         effects=[Immediate(value=0)],
@@ -252,7 +237,6 @@ def test_check_term_begin():
     check_term(term, context)
 
 
-@pytest.mark.skip
 def test_check_program():
     program = Program(
         parameters=[],
@@ -262,7 +246,6 @@ def test_check_program():
     check_program(program)
 
 
-@pytest.mark.skip
 def test_check_program_duplicate_parameters():
     program = Program(
         parameters=["x", "x"],
