@@ -65,7 +65,7 @@ def test_check_term_letrec():
         bindings=[
             ("f", Abstract(parameters=["x"], body=Apply(target=Reference(name="f"), arguments=[Reference(name="x")])))
         ],
-        body=Reference(name="x"),
+        body=Reference(name="f"),
     )
 
     context: Context = {}
