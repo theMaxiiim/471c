@@ -63,7 +63,7 @@ def test_check_term_let_duplicate_binders():
 def test_check_term_letrec():
     term = LetRec(
         bindings=[
-            ("x", Immediate(value=0)),
+            ("f", Abstract(parameters=["x"], body=Apply(target=Reference(name="f"), arguments=[Reference(name="x")])))
         ],
         body=Reference(name="x"),
     )
@@ -73,18 +73,18 @@ def test_check_term_letrec():
     check_term(term, context)
 
 
-def test_check_term_letrec_scope():
+def test_check_term_letrec_not_literal():
+    # we should reject (letrec ((x 0)) x) -- strict apprch since this falls under the purview of let, i.e. not recursive
     term = LetRec(
         bindings=[
-            ("y", Reference(name="x")),
             ("x", Immediate(value=0)),
         ],
         body=Reference(name="x"),
     )
 
     context: Context = {}
-
-    check_term(term, context)
+    with pytest.raises(ValueError):
+        check_term(term, context)
 
 
 def test_check_term_letrec_duplicate_binders():
