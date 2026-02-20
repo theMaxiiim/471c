@@ -15,11 +15,11 @@ def test_check_term_let():
 
     context: Context = {}
 
-    expected = L3.Let(
+    expected = L2.Let(
         bindings=[
-            ("x", L3.Immediate(value=0)),
+            ("x", L2.Immediate(value=0)),
         ],
-        body=L3.Reference(name="x"),
+        body=L2.Reference(name="x"),
     )
 
     actual = eliminate_letrec_term(term, context)
