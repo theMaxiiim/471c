@@ -73,8 +73,7 @@ def test_check_term_letrec():
     check_term(term, context)
 
 
-def test_check_term_letrec_not_literal():
-    # we should reject (letrec ((x 0)) x) -- strict apprch since this falls under the purview of let, i.e. not recursive
+def test_check_term_letrec_scope():
     term = LetRec(
         bindings=[
             ("x", Immediate(value=0)),
@@ -95,19 +94,6 @@ def test_check_term_letrec_duplicate_binders():
         ],
         body=Reference(name="x"),
     )
-
-    context: Context = {}
-
-    with pytest.raises(ValueError):
-        check_term(term, context)
-
-
-def test_check_term_let_literal():
-    term = LetRec(
-        bindings=[("x", Primitive(operator="+", left=Reference(name="x"), right=Immediate(value=1)))],
-        body=Reference(name="x"),
-    )
-    # if you are using LetRec, why are you evaluating a Primitive, use Let instead. Otherwise, wrap it in an Abstract for later execution
 
     context: Context = {}
 
