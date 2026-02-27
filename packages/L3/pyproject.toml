@@ -12,6 +12,3 @@ package = true
 
 [project.scripts]
 l3 = "L3.main:main"
-
-[tool.coverage.report]
-omit = ["*/parse.py"]
