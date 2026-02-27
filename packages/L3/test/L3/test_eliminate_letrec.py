@@ -1,10 +1,8 @@
-import pytest
 from L2 import syntax as L2
 from L3 import syntax as L3
 from L3.eliminate_letrec import Context, eliminate_letrec_program, eliminate_letrec_term
 
 
-@pytest.mark.skip
 def test_check_term_let():
     term = L3.Let(
         bindings=[
@@ -27,7 +25,6 @@ def test_check_term_let():
     assert actual == expected
 
 
-@pytest.mark.skip
 def test_eliminate_letrec_program():
     program = L3.Program(
         parameters=[],
