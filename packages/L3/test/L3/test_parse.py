@@ -18,7 +18,6 @@ from L3.syntax import (
 
 
 # Let
-@pytest.mark.skip
 def test_parse_let_empty():
     source = "(let () x)"
 

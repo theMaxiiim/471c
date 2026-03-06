@@ -4,20 +4,24 @@ parameters  : IDENTIFIER*
 term        : let
             | letrec
             | reference
-            | abstract
-            | apply
-            | immediate
-            | primitive
-            | branch
-            | allocate
-            | load
-            | store
-            | begin
+            // | abstract
+            // | apply
+            // | immediate
+            // | primitive
+            // | branch
+            // | allocate
+            // | load
+            // | store
+            // | begin
 
 
 let         : "(" LET "(" bindings ")" term ")"
 
 letrec      : "(" LETREC "(" bindings ")" term ")"
+
+// define rest of terms pattern matching below
+
+reference   : IDENTIFIER
 
 bindings    : binding*
 binding     : IDENTIFIER term
@@ -28,3 +32,6 @@ LETREC.2    : "letrec"
 LAMBDA.2    : "\\" | "lambda" | "λ"
 
 IDENTIFIER  : /[a-zA-Z_][a-zA-Z0-9_]*/
+
+%import common.WS
+%ignore WS

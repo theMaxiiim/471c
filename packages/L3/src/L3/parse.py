@@ -4,12 +4,7 @@ from pathlib import Path
 from lark import Lark, Token, Transformer
 from lark.visitors import v_args  # pyright: ignore[reportUnknownVariableType]
 
-from .syntax import (
-    Identifier,
-    Let,
-    Program,
-    Term,
-)
+from .syntax import Identifier, Let, Program, Reference, Term
 
 
 class AstTransformer(Transformer[Token, Program | Term]):
@@ -75,6 +70,12 @@ class AstTransformer(Transformer[Token, Program | Term]):
         value: Term,
     ) -> tuple[Identifier, Term]:
         return name, value
+
+    # additional transformed fns
+
+    @v_args(inline=True)
+    def reference(self, name: Identifier) -> Term:
+        return Reference(name=name)
 
 
 def parse_term(source: str) -> Term:
