@@ -1,4 +1,3 @@
-import pytest
 from L3.parse import parse_program, parse_term
 from L3.syntax import (
     Abstract,
@@ -31,7 +30,6 @@ def test_parse_let_empty():
     assert actual == expected
 
 
-@pytest.mark.skip
 def test_parse_let_bindings():
     source = "(let ((x 0)) x)"
 
@@ -48,7 +46,6 @@ def test_parse_let_bindings():
 
 
 # LetRec
-@pytest.mark.skip
 def test_parse_letrec_empty():
     source = "(letrec () x)"
 
@@ -62,7 +59,6 @@ def test_parse_letrec_empty():
     assert actual == expected
 
 
-@pytest.mark.skip
 def test_parse_letrec_bindings():
     source = "(letrec ((x 0)) x)"
 
@@ -79,7 +75,6 @@ def test_parse_letrec_bindings():
 
 
 # Reference
-@pytest.mark.skip
 def test_parse_reference():
     source = "x"
 
@@ -93,7 +88,6 @@ def test_parse_reference():
 
 
 # Abstract
-@pytest.mark.skip
 def test_parse_abstract():
     source = "(\\ (x) x)"
 
@@ -108,7 +102,6 @@ def test_parse_abstract():
 
 
 # Apply
-@pytest.mark.skip
 def test_parse_apply_empty():
     source = "(x)"
 
@@ -122,7 +115,6 @@ def test_parse_apply_empty():
     assert actual == expected
 
 
-@pytest.mark.skip
 def test_parse_apply_arguments():
     source = "(x y z)"
 
@@ -137,7 +129,6 @@ def test_parse_apply_arguments():
 
 
 # Immediate
-@pytest.mark.skip
 def test_parse_immediate():
     source = "42"
 
@@ -149,7 +140,6 @@ def test_parse_immediate():
 
 
 # Primitive
-@pytest.mark.skip
 def test_parse_add():
     source = "(+ 1 2)"
 
@@ -164,7 +154,6 @@ def test_parse_add():
     assert actual == expected
 
 
-@pytest.mark.skip
 def test_parse_subtract():
     source = "(- 3 2)"
 
@@ -179,7 +168,6 @@ def test_parse_subtract():
     assert actual == expected
 
 
-@pytest.mark.skip
 def test_parse_multiply():
     source = "(* 2 3)"
     expected = Primitive(
@@ -192,7 +180,6 @@ def test_parse_multiply():
 
 
 # Branch
-@pytest.mark.skip
 def test_parse_less_than():
     source = "(if (< 1 2) 1 0)"
 
@@ -209,7 +196,6 @@ def test_parse_less_than():
     assert actual == expected
 
 
-@pytest.mark.skip
 def test_parse_equal_to():
     source = "(if (== 1 1) 1 0)"
 
@@ -227,7 +213,6 @@ def test_parse_equal_to():
 
 
 # Allocate
-@pytest.mark.skip
 def test_parse_allocate():
     source = "(allocate 0)"
 
@@ -241,7 +226,6 @@ def test_parse_allocate():
 
 
 # Load
-@pytest.mark.skip
 def test_parse_load():
     source = "(load x 0)"
 
@@ -256,7 +240,6 @@ def test_parse_load():
 
 
 # Store
-@pytest.mark.skip
 def test_parse_store():
     source = "(store x 0 1)"
 
@@ -271,7 +254,6 @@ def test_parse_store():
     assert actual == expected
 
 
-@pytest.mark.skip
 def test_parse_begin():
     source = "(begin x)"
 
@@ -285,7 +267,6 @@ def test_parse_begin():
     assert actual == expected
 
 
-@pytest.mark.skip
 def test_parse_begin_effects():
     source = "(begin x y z)"
 
@@ -303,7 +284,6 @@ def test_parse_begin_effects():
 
 
 # Program
-@pytest.mark.skip
 def test_parse_program_identity():
     source = "(l3 (x) x)"
 
