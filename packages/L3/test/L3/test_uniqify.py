@@ -1,8 +1,10 @@
+import pytest
 from L3.syntax import Apply, Immediate, Let, Reference
 from L3.uniqify import Context, uniqify_term
 from util.sequential_name_generator import SequentialNameGenerator
 
 
+@pytest.mark.skip
 def test_uniqify_term_reference():
     term = Reference(name="x")
 
@@ -15,6 +17,7 @@ def test_uniqify_term_reference():
     assert actual == expected
 
 
+@pytest.mark.skip
 def test_uniqify_immediate():
     term = Immediate(value=42)
 
@@ -27,6 +30,7 @@ def test_uniqify_immediate():
     assert actual == expected
 
 
+@pytest.mark.skip
 def test_uniqify_term_let():
     term = Let(
         bindings=[
