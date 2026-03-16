@@ -61,4 +61,4 @@ def main(
 
     # module = to_ast_program(l1)
 
-    (output or input.with_suffix(".py")).write_text(module)
+    # (output or input.with_suffix(".py")).write_text(module)
