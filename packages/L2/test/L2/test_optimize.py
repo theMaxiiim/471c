@@ -91,9 +91,6 @@ def test_branch_fold_optimizes_chosen_arm():
     assert actual == _prog(Immediate(value=5))
 
 
-# ===== Constant Propagation =====
-
-
 def test_propagate_immediate():
     actual = optimize_program(
         _prog(
@@ -317,9 +314,6 @@ def test_fixed_point_propagate_then_fold():
     assert actual == _prog(Immediate(value=6))
 
 
-# ===== Structural recursion pass-through =====
-
-
 def test_abstract_recurses():
     actual = optimize_program(
         _prog(
@@ -394,3 +388,132 @@ def test_begin_recurses():
         ),
         ["p"],
     )
+
+
+def test_substitute_through_let_no_shadow():
+    actual = optimize_program(
+        _prog(
+            Let(
+                bindings=[("x", Immediate(value=1))],
+                body=Let(
+                    bindings=[("y", Apply(target=_F, arguments=[_X]))],
+                    body=Reference(name="y"),
+                ),
+            ),
+            ["f"],
+        )
+    )
+    assert actual == _prog(
+        Let(
+            bindings=[("y", Apply(target=_F, arguments=[Immediate(value=1)]))],
+            body=Reference(name="y"),
+        ),
+        ["f"],
+    )
+
+
+def test_substitute_through_let_shadowed():
+    actual = optimize_program(
+        _prog(
+            Let(
+                bindings=[("x", Immediate(value=1))],
+                body=Let(
+                    bindings=[("x", Apply(target=_F, arguments=[]))],
+                    body=_X,
+                ),
+            ),
+            ["f"],
+        )
+    )
+    assert actual == _prog(
+        Let(
+            bindings=[("x", Apply(target=_F, arguments=[]))],
+            body=_X,
+        ),
+        ["f"],
+    )
+
+
+def test_substitute_through_let_shadowed_with_later_binding():
+    actual = optimize_program(
+        _prog(
+            Let(
+                bindings=[("x", Immediate(value=1))],
+                body=Let(
+                    bindings=[
+                        ("x", Apply(target=_F, arguments=[])),
+                        ("z", Apply(target=_F, arguments=[_X])),
+                    ],
+                    body=Reference(name="z"),
+                ),
+            ),
+            ["f"],
+        )
+    )
+    assert actual == _prog(
+        Let(
+            bindings=[
+                ("x", Apply(target=_F, arguments=[])),
+                ("z", Apply(target=_F, arguments=[_X])),
+            ],
+            body=Reference(name="z"),
+        ),
+        ["f"],
+    )
+
+
+def test_free_vars_let():
+    body = Let(
+        bindings=[("x", Apply(target=_F, arguments=[]))],
+        body=Let(
+            bindings=[("y", Apply(target=_X, arguments=[]))],
+            body=Reference(name="y"),
+        ),
+    )
+    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
+
+
+def test_free_vars_abstract():
+    body = Let(
+        bindings=[("x", Apply(target=_F, arguments=[]))],
+        body=Abstract(parameters=["y"], body=_X),
+    )
+    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
+
+
+def test_free_vars_branch():
+    body = Let(
+        bindings=[("x", Apply(target=_F, arguments=[]))],
+        body=Branch(
+            operator="<",
+            left=_X,
+            right=Immediate(value=1),
+            consequent=Immediate(value=10),
+            otherwise=Immediate(value=20),
+        ),
+    )
+    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
+
+
+def test_free_vars_load():
+    body = Let(
+        bindings=[("x", Apply(target=_F, arguments=[]))],
+        body=Load(base=_X, index=0),
+    )
+    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
+
+
+def test_free_vars_store():
+    body = Let(
+        bindings=[("x", Apply(target=_F, arguments=[]))],
+        body=Store(base=_X, index=0, value=Immediate(value=1)),
+    )
+    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
+
+
+def test_free_vars_begin():
+    body = Let(
+        bindings=[("x", Apply(target=_F, arguments=[]))],
+        body=Begin(effects=[_X], value=Immediate(value=1)),
+    )
+    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
