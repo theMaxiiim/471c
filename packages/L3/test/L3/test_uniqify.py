@@ -12,7 +12,7 @@ from L3.syntax import (
     Reference,
     Store,
 )
-from L3.uniqify import Context, uniqify_term
+from L3.uniqify import Context, Program, uniqify_program, uniqify_term
 from util.sequential_name_generator import SequentialNameGenerator
 
 
@@ -251,6 +251,22 @@ def test_uniqify_term_begin():
             Store(base=Reference(name="arr0"), index=0, value=Immediate(value=99)),
         ],
         value=Reference(name="arr0"),
+    )
+
+    assert actual == expected
+
+
+def test_uniqify_program():
+    program = Program(
+        parameters=["x", "y"],
+        body=Primitive(operator="+", left=Reference(name="x"), right=Reference(name="y")),
+    )
+
+    _fresh, actual = uniqify_program(program)
+
+    expected = Program(
+        parameters=["x0", "y0"],
+        body=Primitive(operator="+", left=Reference(name="x0"), right=Reference(name="y0")),
     )
 
     assert actual == expected
