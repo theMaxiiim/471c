@@ -74,12 +74,12 @@ def cps_convert_term(
         case L2.Primitive(operator=operator, left=left, right=right):
             return _term(
                 left,
-                lambda l: _term(
+                lambda left: _term(
                     right,
-                    lambda r, l=l: L1.Primitive(
+                    lambda r, left=left: L1.Primitive(
                         destination=(t := fresh("t")),
                         operator=operator,
-                        left=l,
+                        left=left,
                         right=r,
                         then=k(t),
                     ),
@@ -91,15 +91,15 @@ def cps_convert_term(
             t = fresh("t")
             return _term(
                 left,
-                lambda l, j=j, t=t: _term(
+                lambda left, j=j, t=t: _term(
                     right,
-                    lambda r, l=l, j=j, t=t: L1.Abstract(
+                    lambda r, left=left, j=j, t=t: L1.Abstract(
                         destination=j,
                         parameters=[t],
                         body=k(t),
                         then=L1.Branch(
                             operator=operator,
-                            left=l,
+                            left=left,
                             right=r,
                             then=cps_convert_term(
                                 consequent,
