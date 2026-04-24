@@ -318,7 +318,7 @@ def _close_statement(
                 then=_call(target=code_ptr, arguments=(tgt, *args)),
             )
 
-        case _:
+        case _:  # pragma: no cover
             raise TypeError(f"_close_statement: unexpected L1 node {type(statement).__name__}")
 
 
