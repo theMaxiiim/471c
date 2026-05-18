@@ -11,16 +11,22 @@ from .syntax import (
     Apply,
     Begin,
     Branch,
+    Chan,  # + concurrency
+    Close,
+    Closed,
     Identifier,
     Immediate,
-    Jump,  # + nonlocal exits
-    Label,  # + nonlocal exits
+    Jump,
+    Label,
     Let,
     LetRec,
     Load,
     Primitive,
     Program,
+    Recv,  # + concurrency
     Reference,
+    Send,  # + concurrency
+    Spawn,  # + concurrency
     Store,
     Term,
 )
@@ -153,16 +159,42 @@ class AstTransformer(Transformer[Token, Program | Term]):
     def jump(self, _jump: Token, target: Term, value: Term) -> Term:
         return Jump(target=target, value=value)
 
+    # + concurrency
+
+    @v_args(inline=True)
+    def chan_expr(self, _chan: Token, capacity: Token | None = None) -> Term:
+        return Chan(capacity=int(capacity)) if capacity is not None else Chan()
+
+    @v_args(inline=True)
+    def send(self, _send: Token, channel: Term, value: Term) -> Term:
+        return Send(channel=channel, value=value)
+
+    @v_args(inline=True)
+    def recv(self, _recv: Token, channel: Term) -> Term:
+        return Recv(channel=channel)
+
+    @v_args(inline=True)
+    def spawn(self, _spawn: Token, body: Term) -> Term:
+        return Spawn(body=body)
+
+    @v_args(inline=True)
+    def close(self, _close: Token, channel: Term) -> Term:
+        return Close(channel=channel)
+
+    @v_args(inline=True)
+    def closed(self, _closed: Token, channel: Term) -> Term:
+        return Closed(channel=channel)
+
 
 def parse_term(source: str) -> Term:
-    grammar = Path(__file__).with_name("L3.lark").read_text()
+    grammar = Path(__file__).with_name("L4.lark").read_text()
     parser = Lark(grammar, start="term")
     tree = parser.parse(source)  # pyright: ignore[reportUnknownMemberType]
     return AstTransformer().transform(tree)  # pyright: ignore[reportReturnType]
 
 
 def parse_program(source: str) -> Program:
-    grammar = Path(__file__).with_name("L3.lark").read_text()
+    grammar = Path(__file__).with_name("L4.lark").read_text()
     parser = Lark(grammar, start="program")
     tree = parser.parse(source)  # pyright: ignore[reportUnknownMemberType]
     return AstTransformer().transform(tree)  # pyright: ignore[reportReturnType]

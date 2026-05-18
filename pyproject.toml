@@ -28,6 +28,7 @@ members = ["packages/*"]
 
 [tool.uv.sources]
 util = { workspace = true }
+l4 = { workspace = true }
 l3 = { workspace = true }
 l2 = { workspace = true }
 l1 = { workspace = true }

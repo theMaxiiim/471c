@@ -10,6 +10,8 @@ from .syntax import (
     Begin,
     Branch,
     Immediate,
+    Jump,
+    Label,
     Let,
     LetRec,
     Load,
@@ -92,6 +94,17 @@ def uniqify_term(
 
         case Begin(effects=effects, value=value):  # pragma: no branch
             return Begin(effects=[_term(e) for e in effects], value=_term(value))
+
+        case Label(name=name, body=body):
+            new_name = fresh(name)
+            new_context = {**context, name: new_name}
+            return Label(
+                name=new_name,
+                body=uniqify_term(body, new_context, fresh),
+            )
+
+        case Jump(target=target, value=value):
+            return Jump(target=_term(target), value=_term(value))
 
 
 def uniqify_program(

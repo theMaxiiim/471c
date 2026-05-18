@@ -1,5 +1,10 @@
 import pytest
-from L2.optimize import optimize_program
+from L2.optimize import (
+    free_variables,
+    optimize_program,
+    optimize_term,
+    substitute,
+)
 from L2.syntax import (
     Abstract,
     Allocate,
@@ -7,147 +12,20 @@ from L2.syntax import (
     Begin,
     Branch,
     Immediate,
+    Jump,
+    Label,
     Let,
     Load,
     Primitive,
     Program,
     Reference,
     Store,
+    Term,
 )
 
 
-def _prog(body, params=None):
+def _prog(body: Term, params: list[str] | None = None) -> Program:
     return Program(parameters=params or [], body=body)
-
-
-@pytest.mark.parametrize(
-    "op, a, b, expected",
-    [
-        ("+", 2, 3, 5),
-        ("-", 7, 4, 3),
-        ("*", 3, 5, 15),
-    ],
-)
-def test_fold_primitive(op, a, b, expected):
-    actual = optimize_program(_prog(Primitive(operator=op, left=Immediate(value=a), right=Immediate(value=b))))
-    assert actual == _prog(Immediate(value=expected))
-
-
-def test_no_fold_primitive_non_constant():
-    body = Primitive(operator="+", left=Reference(name="x"), right=Immediate(value=1))
-    assert optimize_program(_prog(body, ["x"])) == _prog(body, ["x"])
-
-
-## constant folding
-
-
-@pytest.mark.parametrize(
-    "op, a, b, picks_consequent",
-    [
-        ("<", 1, 5, True),
-        ("<", 5, 1, False),
-        ("==", 3, 3, True),
-        ("==", 3, 4, False),
-    ],
-)
-def test_fold_branch(op, a, b, picks_consequent):
-    actual = optimize_program(
-        _prog(
-            Branch(
-                operator=op,
-                left=Immediate(value=a),
-                right=Immediate(value=b),
-                consequent=Immediate(value=10),
-                otherwise=Immediate(value=20),
-            )
-        )
-    )
-    assert actual == _prog(Immediate(value=10 if picks_consequent else 20))
-
-
-def test_no_fold_branch_non_constant():
-    body = Branch(
-        operator="<",
-        left=Reference(name="x"),
-        right=Immediate(value=5),
-        consequent=Immediate(value=10),
-        otherwise=Immediate(value=20),
-    )
-    assert optimize_program(_prog(body, ["x"])) == _prog(body, ["x"])
-
-
-def test_branch_fold_optimizes_chosen_arm():
-    actual = optimize_program(
-        _prog(
-            Branch(
-                operator="==",
-                left=Immediate(value=1),
-                right=Immediate(value=1),
-                consequent=Primitive(operator="+", left=Immediate(value=2), right=Immediate(value=3)),
-                otherwise=Immediate(value=0),
-            )
-        )
-    )
-    assert actual == _prog(Immediate(value=5))
-
-
-def test_propagate_immediate():
-    actual = optimize_program(
-        _prog(
-            Let(
-                bindings=[("x", Immediate(value=7))],
-                body=Primitive(operator="+", left=Reference(name="x"), right=Immediate(value=1)),
-            )
-        )
-    )
-    assert actual == _prog(Immediate(value=8))
-
-
-def test_propagate_reference():
-    actual = optimize_program(
-        _prog(
-            Let(
-                bindings=[("x", Reference(name="y"))],
-                body=Reference(name="x"),
-            ),
-            ["y"],
-        )
-    )
-    assert actual == _prog(Reference(name="y"), ["y"])
-
-
-def test_propagate_chain():
-    actual = optimize_program(
-        _prog(
-            Let(
-                bindings=[("x", Immediate(value=3)), ("y", Reference(name="x"))],
-                body=Reference(name="y"),
-            )
-        )
-    )
-    assert actual == _prog(Immediate(value=3))
-
-
-def test_propagate_into_later_bindings():
-    actual = optimize_program(
-        _prog(
-            Let(
-                bindings=[
-                    ("x", Immediate(value=2)),
-                    ("y", Primitive(operator="+", left=Reference(name="x"), right=Reference(name="a"))),
-                ],
-                body=Reference(name="y"),
-            ),
-            ["a"],
-        )
-    )
-    assert actual == _prog(
-        Let(
-            bindings=[("y", Primitive(operator="+", left=Immediate(value=2), right=Reference(name="a")))],
-            body=Reference(name="y"),
-        ),
-        ["a"],
-    )
 
 
 _X = Reference(name="x")
@@ -155,11 +33,107 @@ _A = Reference(name="a")
 _P = Reference(name="p")
 _F = Reference(name="f")
 
-SUBSTITUTE_CASES = [
-    ("reference", [], _X, Immediate(value=1)),
+
+# -- free_variables --
+
+
+def test_free_variables_all_cases():
+    assert free_variables(Immediate(value=1)) == set()
+    assert free_variables(Allocate(count=1)) == set()
+    assert free_variables(Reference(name="x")) == {"x"}
+
+    assert free_variables(
+        Abstract(
+            parameters=["x", "y"],
+            body=Primitive(
+                operator="+",
+                left=Reference(name="x"),
+                right=Reference(name="z"),
+            ),
+        )
+    ) == {"z"}
+
+    assert free_variables(
+        Apply(
+            target=Reference(name="f"),
+            arguments=[
+                Reference(name="x"),
+                Primitive(
+                    operator="+",
+                    left=Reference(name="y"),
+                    right=Immediate(value=1),
+                ),
+            ],
+        )
+    ) == {"f", "x", "y"}
+
+    assert free_variables(Primitive(operator="+", left=Reference(name="x"), right=Reference(name="y"))) == {"x", "y"}
+
+    assert free_variables(
+        Branch(
+            operator="<",
+            left=Reference(name="a"),
+            right=Reference(name="b"),
+            consequent=Reference(name="c"),
+            otherwise=Reference(name="d"),
+        )
+    ) == {"a", "b", "c", "d"}
+
+    assert free_variables(Load(base=Reference(name="arr"), index=0)) == {"arr"}
+    assert free_variables(Store(base=Reference(name="arr"), index=0, value=Reference(name="val"))) == {"arr", "val"}
+
+    assert free_variables(
+        Begin(
+            effects=[
+                Reference(name="u"),
+                Store(base=Reference(name="a"), index=0, value=Reference(name="b")),
+            ],
+            value=Reference(name="v"),
+        )
+    ) == {"u", "a", "b", "v"}
+
+    assert free_variables(
+        Let(
+            bindings=[
+                ("x", Reference(name="a")),
+                ("y", Primitive(operator="+", left=Reference(name="x"), right=Reference(name="b"))),
+            ],
+            body=Primitive(operator="+", left=Reference(name="y"), right=Reference(name="c")),
+        )
+    ) == {"a", "b", "c"}
+
+
+def test_free_variables_label():
+    assert free_variables(Label(name="done", body=Reference(name="done"))) == set()
+    assert free_variables(Label(name="done", body=Reference(name="x"))) == {"x"}
+    assert free_variables(Label(name="k", body=Jump(target=Reference(name="k"), value=Reference(name="x")))) == {"x"}
+
+
+def test_free_variables_jump():
+    assert free_variables(Jump(target=Reference(name="k"), value=Reference(name="x"))) == {"k", "x"}
+
+
+# -- substitute --
+
+SUBSTITUTE_CASES: list[tuple[str, list[str], Term, Term]] = [
+    ("reference_match", [], _X, Immediate(value=1)),
     ("reference_no_match", ["y"], Reference(name="y"), Reference(name="y")),
-    ("primitive", [], Primitive(operator="+", left=_X, right=_X), Immediate(value=2)),
+    ("immediate", [], Immediate(value=99), Immediate(value=99)),
+    ("allocate", [], Allocate(count=3), Allocate(count=3)),
+    (
+        "abstract_no_shadow",
+        [],
+        Abstract(parameters=["y"], body=_X),
+        Abstract(parameters=["y"], body=Immediate(value=1)),
+    ),
+    ("abstract_shadowed", [], Abstract(parameters=["x"], body=_X), Abstract(parameters=["x"], body=_X)),
     ("apply", ["f"], Apply(target=_F, arguments=[_X]), Apply(target=_F, arguments=[Immediate(value=1)])),
+    (
+        "primitive",
+        [],
+        Primitive(operator="+", left=_X, right=_X),
+        Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=1)),
+    ),
     (
         "branch",
         ["a"],
@@ -168,352 +142,333 @@ SUBSTITUTE_CASES = [
     ),
     ("load", [], Load(base=_X, index=0), Load(base=Immediate(value=1), index=0)),
     ("store", ["p"], Store(base=_P, index=0, value=_X), Store(base=_P, index=0, value=Immediate(value=1))),
+    ("begin", [], Begin(effects=[_X], value=_X), Begin(effects=[Immediate(value=1)], value=Immediate(value=1))),
     (
-        "begin",
-        ["p"],
-        Begin(effects=[Store(base=_P, index=0, value=_X)], value=_X),
-        Begin(effects=[Store(base=_P, index=0, value=Immediate(value=1))], value=Immediate(value=1)),
-    ),
-    (
-        "abstract_no_shadow",
+        "let_no_shadow",
         [],
-        Abstract(parameters=["y"], body=_X),
-        Abstract(parameters=["y"], body=Immediate(value=1)),
+        Let(bindings=[("y", _X)], body=Reference(name="y")),
+        Let(bindings=[("y", Immediate(value=1))], body=Reference(name="y")),
     ),
-    ("abstract_shadowed", [], Abstract(parameters=["x"], body=_X), Abstract(parameters=["x"], body=_X)),
-    ("nested_let_no_shadow", [], Let(bindings=[("y", _X)], body=Reference(name="y")), Immediate(value=1)),
-    ("nested_let_shadowed", [], Let(bindings=[("x", Immediate(value=9))], body=_X), Immediate(value=9)),
-    ("immediate", [], Immediate(value=99), Immediate(value=99)),
-    ("allocate", [], Allocate(count=3), Allocate(count=3)),
+    (
+        "let_shadowed",
+        [],
+        Let(bindings=[("x", Immediate(value=9))], body=_X),
+        Let(bindings=[("x", Immediate(value=9))], body=_X),
+    ),
+    ("label_no_shadow", [], Label(name="done", body=_X), Label(name="done", body=Immediate(value=1))),
+    ("label_shadowed", [], Label(name="x", body=_X), Label(name="x", body=_X)),
+    (
+        "jump",
+        ["k"],
+        Jump(target=Reference(name="k"), value=_X),
+        Jump(target=Reference(name="k"), value=Immediate(value=1)),
+    ),
+    (
+        "let_shadowed_later_binding",
+        ["f"],
+        Let(bindings=[("x", Immediate(value=9)), ("y", Apply(target=_F, arguments=[_X]))], body=Reference(name="y")),
+        Let(bindings=[("x", Immediate(value=9)), ("y", Apply(target=_F, arguments=[_X]))], body=Reference(name="y")),
+    ),
 ]
 
 
 @pytest.mark.parametrize(
-    "name, extra_params, body, expected_body", SUBSTITUTE_CASES, ids=[c[0] for c in SUBSTITUTE_CASES]
+    "name, extra_params, term, expected",
+    SUBSTITUTE_CASES,
+    ids=[c[0] for c in SUBSTITUTE_CASES],
 )
-def test_propagate_through(name, extra_params, body, expected_body):
-    actual = optimize_program(
-        _prog(
-            Let(bindings=[("x", Immediate(value=1))], body=body),
-            extra_params,
+def test_substitute_cases(name: str, extra_params: list[str], term: Term, expected: Term):
+    actual = substitute(term, "x", Immediate(value=1))
+    assert actual == expected
+
+
+# -- optimize_term --
+
+
+def test_optimize_term_main_paths():
+    assert optimize_term(Reference(name="x")) == Reference(name="x")
+    assert optimize_term(Immediate(value=1)) == Immediate(value=1)
+    assert optimize_term(Allocate(count=2)) == Allocate(count=2)
+
+    assert optimize_term(
+        Abstract(
+            parameters=["x"],
+            body=Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=2)),
         )
+    ) == Abstract(parameters=["x"], body=Immediate(value=3))
+
+    assert optimize_term(
+        Apply(
+            target=_F,
+            arguments=[Primitive(operator="+", left=Immediate(value=2), right=Immediate(value=3))],
+        )
+    ) == Apply(target=_F, arguments=[Immediate(value=5)])
+
+    # constant folding
+    assert optimize_term(Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=2))) == Immediate(
+        value=3
     )
-    assert actual == _prog(expected_body, extra_params)
+    assert optimize_term(Primitive(operator="-", left=Immediate(value=5), right=Immediate(value=2))) == Immediate(
+        value=3
+    )
+    assert optimize_term(Primitive(operator="*", left=Immediate(value=4), right=Immediate(value=3))) == Immediate(
+        value=12
+    )
+    non_fold_prim = Primitive(operator="+", left=Reference(name="x"), right=Immediate(value=2))
+    assert optimize_term(non_fold_prim) == non_fold_prim
 
-
-FREE_VAR_CASES = [
-    ("reference", ["v"], Reference(name="v")),
-    ("immediate", [], Immediate(value=42)),
-    ("allocate", [], Allocate(count=2)),
-    ("abstract", ["a"], Abstract(parameters=["x"], body=_A)),
-    ("apply", ["f", "a"], Apply(target=_F, arguments=[_A])),
-    ("primitive", ["a"], Primitive(operator="+", left=_A, right=Immediate(value=1))),
-    (
-        "branch",
-        ["a", "b"],
+    # branch folding
+    assert optimize_term(
         Branch(
             operator="<",
-            left=_A,
-            right=Reference(name="b"),
-            consequent=Immediate(value=1),
-            otherwise=Immediate(value=2),
-        ),
-    ),
-    ("load", ["p"], Load(base=_P, index=0)),
-    ("store", ["p", "v"], Store(base=_P, index=0, value=Reference(name="v"))),
-    ("begin", ["p", "v"], Begin(effects=[_P], value=Reference(name="v"))),
-    ("let", ["a"], Let(bindings=[("y", _A)], body=Reference(name="y"))),
-]
-
-
-@pytest.mark.parametrize("name, params, body", FREE_VAR_CASES, ids=[c[0] for c in FREE_VAR_CASES])
-def test_dce_removes_unused(name, params, body):
-    program = _prog(Let(bindings=[("unused", Immediate(value=1))], body=body), params)
-    actual = optimize_program(program)
-
-    if name == "let":
-        assert actual == _prog(_A, params)
-    else:
-        assert actual == _prog(body, params)
-
-
-def test_dce_keeps_used_binding():
-    body = Let(
-        bindings=[("x", Primitive(operator="+", left=_A, right=Reference(name="b")))],
-        body=_X,
-    )
-    assert optimize_program(_prog(body, ["a", "b"])) == _prog(body, ["a", "b"])
-
-
-def test_dce_transitive_liveness():
-    body = Let(
-        bindings=[
-            ("x", Primitive(operator="+", left=_A, right=Immediate(value=1))),
-            ("y", Primitive(operator="*", left=_X, right=Immediate(value=2))),
-        ],
-        body=Reference(name="y"),
-    )
-    assert optimize_program(_prog(body, ["a"])) == _prog(body, ["a"])
-
-
-def test_dce_all_bindings_removed():
-    actual = optimize_program(
-        _prog(
-            Let(
-                bindings=[("x", Immediate(value=42))],
-                body=Immediate(value=0),
-            )
+            left=Immediate(value=1),
+            right=Immediate(value=2),
+            consequent=Immediate(value=10),
+            otherwise=Immediate(value=20),
         )
+    ) == Immediate(value=10)
+    assert optimize_term(
+        Branch(
+            operator="<",
+            left=Immediate(value=2),
+            right=Immediate(value=1),
+            consequent=Immediate(value=10),
+            otherwise=Immediate(value=20),
+        )
+    ) == Immediate(value=20)
+    assert optimize_term(
+        Branch(
+            operator="==",
+            left=Immediate(value=2),
+            right=Immediate(value=2),
+            consequent=Immediate(value=10),
+            otherwise=Immediate(value=20),
+        )
+    ) == Immediate(value=10)
+    assert optimize_term(
+        Branch(
+            operator="==",
+            left=Immediate(value=2),
+            right=Immediate(value=3),
+            consequent=Immediate(value=10),
+            otherwise=Immediate(value=20),
+        )
+    ) == Immediate(value=20)
+    assert optimize_term(
+        Branch(
+            operator="<",
+            left=Reference(name="x"),
+            right=Immediate(value=0),
+            consequent=Primitive(operator="*", left=Immediate(value=2), right=Immediate(value=3)),
+            otherwise=Primitive(operator="-", left=Immediate(value=8), right=Immediate(value=1)),
+        )
+    ) == Branch(
+        operator="<",
+        left=Reference(name="x"),
+        right=Immediate(value=0),
+        consequent=Immediate(value=6),
+        otherwise=Immediate(value=7),
     )
-    assert actual == _prog(Immediate(value=0))
+
+    # load / store recurse
+    assert optimize_term(
+        Load(base=Let(bindings=[("a", Immediate(value=1))], body=Reference(name="a")), index=0)
+    ) == Load(base=Immediate(value=1), index=0)
+
+    assert optimize_term(
+        Store(
+            base=Let(bindings=[("a", Immediate(value=1))], body=Reference(name="a")),
+            index=0,
+            value=Primitive(operator="+", left=Immediate(value=3), right=Immediate(value=4)),
+        )
+    ) == Store(base=Immediate(value=1), index=0, value=Immediate(value=7))
+
+    # begin recurses
+    assert optimize_term(
+        Begin(
+            effects=[
+                Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=2)),
+            ],
+            value=Primitive(operator="*", left=Immediate(value=2), right=Immediate(value=3)),
+        )
+    ) == Begin(
+        effects=[Immediate(value=3)],
+        value=Immediate(value=6),
+    )
+
+    # single-pass let propagation
+    assert optimize_term(
+        Let(
+            bindings=[
+                ("x", Primitive(operator="+", left=Reference(name="a"), right=Immediate(value=1))),
+                ("y", Reference(name="x")),
+            ],
+            body=Reference(name="y"),
+        )
+    ) == Let(
+        bindings=[
+            ("x", Primitive(operator="+", left=Reference(name="a"), right=Immediate(value=1))),
+        ],
+        body=Reference(name="x"),
+    )
 
 
-def test_let_mixed_propagate_and_keep():
-    actual = optimize_program(
+def test_optimize_term_label():
+    assert optimize_term(
+        Label(
+            name="done",
+            body=Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=2)),
+        )
+    ) == Label(name="done", body=Immediate(value=3))
+
+
+def test_optimize_term_jump():
+    assert optimize_term(
+        Jump(
+            target=Reference(name="done"),
+            value=Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=2)),
+        )
+    ) == Jump(target=Reference(name="done"), value=Immediate(value=3))
+
+
+def test_optimize_term_jump_target_recurses():
+    assert optimize_term(
+        Jump(
+            target=Let(bindings=[("k", Reference(name="done"))], body=Reference(name="k")),
+            value=Immediate(value=0),
+        )
+    ) == Jump(target=Reference(name="done"), value=Immediate(value=0))
+
+
+# -- multi-step (optimize_program) --
+
+
+def test_optimize_program_multi_step_propagation():
+    assert optimize_program(
         _prog(
             Let(
                 bindings=[
-                    ("x", Immediate(value=1)),
-                    ("y", Primitive(operator="+", left=_A, right=Immediate(value=2))),
+                    ("x", Immediate(value=5)),
+                    ("y", Reference(name="x")),
+                    ("z", Primitive(operator="+", left=Reference(name="y"), right=Immediate(value=1))),
                 ],
-                body=Primitive(operator="+", left=Reference(name="y"), right=_X),
-            ),
-            ["a"],
-        )
-    )
-    assert actual == _prog(
-        Let(
-            bindings=[("y", Primitive(operator="+", left=_A, right=Immediate(value=2)))],
-            body=Primitive(operator="+", left=Reference(name="y"), right=Immediate(value=1)),
-        ),
-        ["a"],
-    )
-
-
-def test_let_propagate_shadow_in_bindings():
-    actual = optimize_program(
-        _prog(
-            Let(
-                bindings=[("x", Immediate(value=1)), ("x", Immediate(value=2))],
-                body=_X,
+                body=Reference(name="z"),
             )
         )
-    )
-    assert actual == _prog(Immediate(value=2))
+    ) == _prog(Immediate(value=6))
 
 
-def test_fixed_point_propagate_then_fold():
+# -- label / jump via optimize_program --
+
+
+def test_label_recurses():
     actual = optimize_program(
         _prog(
-            Let(
-                bindings=[("x", Immediate(value=2))],
-                body=Primitive(operator="*", left=_X, right=Immediate(value=3)),
-            )
-        )
-    )
-    assert actual == _prog(Immediate(value=6))
-
-
-def test_abstract_recurses():
-    actual = optimize_program(
-        _prog(
-            Abstract(
-                parameters=["a"],
+            Label(
+                name="done",
                 body=Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=2)),
             )
         )
     )
-    assert actual == _prog(Abstract(parameters=["a"], body=Immediate(value=3)))
+    assert actual == _prog(Label(name="done", body=Immediate(value=3)))
 
 
-def test_apply_recurses():
+def test_jump_recurses():
     actual = optimize_program(
         _prog(
-            Apply(
-                target=_F,
-                arguments=[Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=2))],
-            ),
-            ["f"],
+            Label(
+                name="done",
+                body=Jump(
+                    target=Reference(name="done"),
+                    value=Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=2)),
+                ),
+            )
         )
     )
-    assert actual == _prog(Apply(target=_F, arguments=[Immediate(value=3)]), ["f"])
+    assert actual == _prog(
+        Label(
+            name="done",
+            body=Jump(
+                target=Reference(name="done"),
+                value=Immediate(value=3),
+            ),
+        )
+    )
 
 
-def test_load_recurses():
+def test_free_vars_label_dce():
+    body = Let(
+        bindings=[("x", Apply(target=_F, arguments=[]))],
+        body=Label(name="done", body=_X),
+    )
+    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
+
+
+def test_free_vars_jump_dce():
+    body = Let(
+        bindings=[("x", Apply(target=_F, arguments=[]))],
+        body=Label(name="k", body=Jump(target=Reference(name="k"), value=_X)),
+    )
+    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
+
+
+def test_dce_removes_unused_with_label():
+    actual = optimize_program(
+        _prog(
+            Let(
+                bindings=[("unused", Immediate(value=99))],
+                body=Label(name="done", body=Immediate(value=0)),
+            )
+        )
+    )
+    assert actual == _prog(Label(name="done", body=Immediate(value=0)))
+
+
+def test_substitute_label_no_shadow_optimize():
     actual = optimize_program(
         _prog(
             Let(
                 bindings=[("x", Immediate(value=5))],
-                body=Load(base=_X, index=0),
+                body=Label(name="done", body=_X),
             )
         )
     )
-    assert actual == _prog(Load(base=Immediate(value=5), index=0))
+    assert actual == _prog(Label(name="done", body=Immediate(value=5)))
 
 
-def test_store_recurses():
+def test_substitute_label_shadowed_optimize():
     actual = optimize_program(
         _prog(
-            Store(
-                base=_P,
-                index=0,
-                value=Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=1)),
-            ),
-            ["p"],
+            Let(
+                bindings=[("done", Immediate(value=5))],
+                body=Label(name="done", body=Reference(name="done")),
+            )
         )
     )
-    assert actual == _prog(Store(base=_P, index=0, value=Immediate(value=2)), ["p"])
+    assert actual == _prog(Label(name="done", body=Reference(name="done")))
 
 
-def test_begin_recurses():
-    actual = optimize_program(
-        _prog(
-            Begin(
-                effects=[
-                    Store(
-                        base=_P,
-                        index=0,
-                        value=Primitive(operator="+", left=Immediate(value=1), right=Immediate(value=1)),
-                    )
+# -- optimize_program --
+
+
+def test_optimize_program_fixed_point():
+    assert optimize_program(
+        Program(
+            parameters=[],
+            body=Let(
+                bindings=[
+                    ("x", Immediate(value=1)),
+                    ("y", Reference(name="x")),
+                    ("z", Primitive(operator="+", left=Reference(name="y"), right=Immediate(value=2))),
                 ],
-                value=Primitive(operator="*", left=Immediate(value=2), right=Immediate(value=3)),
+                body=Reference(name="z"),
             ),
-            ["p"],
         )
-    )
-    assert actual == _prog(
-        Begin(
-            effects=[Store(base=_P, index=0, value=Immediate(value=2))],
-            value=Immediate(value=6),
-        ),
-        ["p"],
-    )
+    ) == Program(parameters=[], body=Immediate(value=3))
 
-
-def test_substitute_through_let_no_shadow():
-    actual = optimize_program(
-        _prog(
-            Let(
-                bindings=[("x", Immediate(value=1))],
-                body=Let(
-                    bindings=[("y", Apply(target=_F, arguments=[_X]))],
-                    body=Reference(name="y"),
-                ),
-            ),
-            ["f"],
-        )
-    )
-    assert actual == _prog(
-        Let(
-            bindings=[("y", Apply(target=_F, arguments=[Immediate(value=1)]))],
-            body=Reference(name="y"),
-        ),
-        ["f"],
-    )
-
-
-def test_substitute_through_let_shadowed():
-    actual = optimize_program(
-        _prog(
-            Let(
-                bindings=[("x", Immediate(value=1))],
-                body=Let(
-                    bindings=[("x", Apply(target=_F, arguments=[]))],
-                    body=_X,
-                ),
-            ),
-            ["f"],
-        )
-    )
-    assert actual == _prog(
-        Let(
-            bindings=[("x", Apply(target=_F, arguments=[]))],
-            body=_X,
-        ),
-        ["f"],
-    )
-
-
-def test_substitute_through_let_shadowed_with_later_binding():
-    actual = optimize_program(
-        _prog(
-            Let(
-                bindings=[("x", Immediate(value=1))],
-                body=Let(
-                    bindings=[
-                        ("x", Apply(target=_F, arguments=[])),
-                        ("z", Apply(target=_F, arguments=[_X])),
-                    ],
-                    body=Reference(name="z"),
-                ),
-            ),
-            ["f"],
-        )
-    )
-    assert actual == _prog(
-        Let(
-            bindings=[
-                ("x", Apply(target=_F, arguments=[])),
-                ("z", Apply(target=_F, arguments=[_X])),
-            ],
-            body=Reference(name="z"),
-        ),
-        ["f"],
-    )
-
-
-def test_free_vars_let():
-    body = Let(
-        bindings=[("x", Apply(target=_F, arguments=[]))],
-        body=Let(
-            bindings=[("y", Apply(target=_X, arguments=[]))],
-            body=Reference(name="y"),
-        ),
-    )
-    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
-
-
-def test_free_vars_abstract():
-    body = Let(
-        bindings=[("x", Apply(target=_F, arguments=[]))],
-        body=Abstract(parameters=["y"], body=_X),
-    )
-    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
-
-
-def test_free_vars_branch():
-    body = Let(
-        bindings=[("x", Apply(target=_F, arguments=[]))],
-        body=Branch(
-            operator="<",
-            left=_X,
-            right=Immediate(value=1),
-            consequent=Immediate(value=10),
-            otherwise=Immediate(value=20),
-        ),
-    )
-    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
-
-
-def test_free_vars_load():
-    body = Let(
-        bindings=[("x", Apply(target=_F, arguments=[]))],
-        body=Load(base=_X, index=0),
-    )
-    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
-
-
-def test_free_vars_store():
-    body = Let(
-        bindings=[("x", Apply(target=_F, arguments=[]))],
-        body=Store(base=_X, index=0, value=Immediate(value=1)),
-    )
-    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
-
-
-def test_free_vars_begin():
-    body = Let(
-        bindings=[("x", Apply(target=_F, arguments=[]))],
-        body=Begin(effects=[_X], value=Immediate(value=1)),
-    )
-    assert optimize_program(_prog(body, ["f"])) == _prog(body, ["f"])
+    immediate_program = Program(parameters=[], body=Immediate(value=42))
+    reference_program = Program(parameters=["x"], body=Reference(name="x"))
+    allocate_program = Program(parameters=[], body=Allocate(count=4))
+    assert optimize_program(immediate_program) == immediate_program
+    assert optimize_program(reference_program) == reference_program
+    assert optimize_program(allocate_program) == allocate_program

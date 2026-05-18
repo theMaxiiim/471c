@@ -10,6 +10,8 @@ from .syntax import (
     Branch,
     Identifier,
     Immediate,
+    Jump,
+    Label,
     Let,
     LetRec,
     Load,
@@ -110,6 +112,13 @@ def check_term(
         case Begin(effects=effects, value=value):  # pragma: no branch
             for effect in effects:
                 recur(effect)
+            recur(value)
+
+        case Label(name=name, body=body):
+            recur(body, context={**context, name: None})
+
+        case Jump(target=target, value=value):
+            recur(target)
             recur(value)
 
 

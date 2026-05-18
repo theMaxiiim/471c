@@ -1,0 +1,7 @@
+(l4 ()
+    (let ((ch (chan)))
+        (begin
+            (close ch)
+            (begin
+                (recv ch)
+                (closed? ch)))))

@@ -87,6 +87,15 @@ def eliminate_letrec_term(
         case L3.Begin(effects=effects, value=value):  # pragma: no branch
             return L2.Begin(effects=[recur(e) for e in effects], value=recur(value))
 
+        case L3.Label(name=name, body=body):
+            return L2.Label(
+                name=name,
+                body=eliminate_letrec_term(body, {**context, name: False}),
+            )
+
+        case L3.Jump(target=target, value=value):
+            return L2.Jump(target=recur(target), value=recur(value))
+
 
 def eliminate_letrec_program(
     program: L3.Program,

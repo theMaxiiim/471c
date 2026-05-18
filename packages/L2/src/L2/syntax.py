@@ -15,7 +15,19 @@ class Program(BaseModel, frozen=True):
 
 
 type Term = Annotated[
-    Let | Reference | Abstract | Apply | Immediate | Primitive | Branch | Allocate | Load | Store | Begin,
+    Let
+    | Reference
+    | Abstract
+    | Apply
+    | Immediate
+    | Primitive
+    | Branch
+    | Allocate
+    | Load
+    | Store
+    | Begin
+    | Label
+    | Jump,
     Field(discriminator="tag"),
 ]
 
@@ -85,4 +97,19 @@ class Store(BaseModel, frozen=True):
 class Begin(BaseModel, frozen=True):
     tag: Literal["begin"] = "begin"
     effects: Sequence[Term]
+    value: Term
+
+
+# non local exit addition
+
+
+class Label(BaseModel, frozen=True):
+    tag: Literal["label"] = "label"
+    name: Identifier
+    body: Term
+
+
+class Jump(BaseModel, frozen=True):
+    tag: Literal["jump"] = "jump"
+    target: Term
     value: Term

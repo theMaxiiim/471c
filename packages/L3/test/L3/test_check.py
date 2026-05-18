@@ -7,6 +7,8 @@ from L3.syntax import (
     Begin,
     Branch,
     Immediate,
+    Jump,
+    Label,
     Let,
     LetRec,
     Load,
@@ -253,3 +255,65 @@ def test_check_program_duplicate_parameters():
 
     with pytest.raises(ValueError):
         check_program(program)
+
+
+# Label
+def test_check_term_label():
+    term = Label(
+        name="done",
+        body=Reference(name="done"),
+    )
+
+    context: Context = {}
+
+    check_term(term, context)
+
+
+def test_check_term_label_body_uses_outer_scope():
+    term = Label(
+        name="done",
+        body=Jump(
+            target=Reference(name="done"),
+            value=Reference(name="x"),
+        ),
+    )
+
+    context: Context = {"x": None}
+
+    check_term(term, context)
+
+
+def test_check_term_label_body_free_variable():
+    term = Label(
+        name="done",
+        body=Reference(name="x"),
+    )
+
+    context: Context = {}
+
+    with pytest.raises(ValueError):
+        check_term(term, context)
+
+
+# Jump
+def test_check_term_jump():
+    term = Jump(
+        target=Reference(name="k"),
+        value=Immediate(value=0),
+    )
+
+    context: Context = {"k": None}
+
+    check_term(term, context)
+
+
+def test_check_term_jump_free_target():
+    term = Jump(
+        target=Reference(name="k"),
+        value=Immediate(value=0),
+    )
+
+    context: Context = {}
+
+    with pytest.raises(ValueError):
+        check_term(term, context)

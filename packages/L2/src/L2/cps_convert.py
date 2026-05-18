@@ -116,6 +116,28 @@ def cps_convert_term(
                 ),
             )
 
+        case L2.Label(name=name, body=body):
+            t = fresh("t")
+            return L1.Abstract(
+                destination=name,
+                parameters=[t],
+                body=k(t),
+                then=cps_convert_term(
+                    body,
+                    lambda v, name=name: L1.Apply(target=name, arguments=[v]),
+                    fresh,
+                ),
+            )
+
+        case L2.Jump(target=target, value=value):
+            return _term(
+                target,
+                lambda ctrl_pt: _term(
+                    value,
+                    lambda val, ctrl_pt=ctrl_pt: L1.Apply(target=ctrl_pt, arguments=[val]),
+                ),
+            )
+
         case L2.Allocate(count=count):
             t = fresh("t")
             return L1.Allocate(destination=t, count=count, then=k(t))

@@ -1,0 +1,6 @@
+(l4 ()
+    (let ((ch1 (chan)) (ch2 (chan)))
+        (begin
+            (spawn (\ () (send ch1 5)))
+            (spawn (\ () (send ch2 (* (recv ch1) 10))))
+            (recv ch2))))

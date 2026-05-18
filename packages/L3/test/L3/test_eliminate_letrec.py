@@ -1,4 +1,3 @@
-import pytest
 from L2 import syntax as L2
 from L3 import syntax as L3
 from L3.eliminate_letrec import Context, eliminate_letrec_program, eliminate_letrec_term
@@ -58,11 +57,10 @@ def test_eliminate_letrec_term_reference_value():
     assert actual == expected
 
 
-@pytest.mark.skip
 def test_eliminate_letrec_term_reference_variable():
     term = L3.Reference(name="x")
 
-    context: Context = {"x": None}
+    context: Context = {"x": True}
     actual = eliminate_letrec_term(term, context)
 
     expected = L2.Load(base=L2.Reference(name="x"), index=0)
@@ -232,6 +230,42 @@ def test_eliminate_letrec_program():
     expected = L2.Program(
         parameters=["x"],
         body=L2.Reference(name="x"),
+    )
+
+    assert actual == expected
+
+
+# Label
+def test_eliminate_letrec_term_label():
+    term = L3.Label(
+        name="done",
+        body=L3.Reference(name="done"),
+    )
+
+    context: Context = {}
+    actual = eliminate_letrec_term(term, context)
+
+    expected = L2.Label(
+        name="done",
+        body=L2.Reference(name="done"),
+    )
+
+    assert actual == expected
+
+
+# Jump
+def test_eliminate_letrec_term_jump():
+    term = L3.Jump(
+        target=L3.Reference(name="k"),
+        value=L3.Immediate(value=42),
+    )
+
+    context: Context = {}
+    actual = eliminate_letrec_term(term, context)
+
+    expected = L2.Jump(
+        target=L2.Reference(name="k"),
+        value=L2.Immediate(value=42),
     )
 
     assert actual == expected

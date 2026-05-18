@@ -1,0 +1,8 @@
+(l4 () 
+(let ((ch (chan))) 
+(begin (spawn 
+(\ () 
+(send ch 42))) 
+(recv ch)
+)
+))

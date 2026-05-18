@@ -1,0 +1,14 @@
+[project]
+name = "L4"
+version = "0.1.0"
+description = "Support Go-like concurrency"
+readme = "README.md"
+authors = [{ name = "Max De Jesus", email = "mdj@udel.edu" }]
+requires-python = ">=3.14"
+dependencies = ["click>=8.3.1", "pydantic>=2.12.3", "lark>=1.3.1", "util", "L3", "L2", "L1"]
+
+[tool.uv]
+package = true
+
+[project.scripts]
+l4 = "L4.main:main"

@@ -15,6 +15,12 @@ term        : let
             | begin
             | label_expr
             | jump
+            | chan_expr
+            | send
+            | recv
+            | spawn
+            | close
+            | closed
 
 
 let         : "(" LET "(" bindings ")" term ")"
@@ -41,16 +47,31 @@ store       : "(" STORE term INT term ")"
 
 begin       : "(" BEGIN term+ ")"
 
-// -- nonlocal exits --
+// nonlocal exits --
 
 label_expr  : "(" LABEL IDENTIFIER term ")"
 
 jump        : "(" JUMP term term ")"
 
+//-concurrency-
+
+chan_expr    : "(" CHAN ")"
+            | "(" CHAN INT ")"
+
+send        : "(" SEND term term ")"
+
+recv        : "(" RECV term ")"
+
+spawn       : "(" SPAWN term ")"
+
+close       : "(" CLOSE term ")"
+
+closed      : "(" CLOSED term ")"
+
 bindings    : binding*
 binding     : "(" IDENTIFIER term ")"
 
-PROGRAM.2   : "l3"
+PROGRAM.2   : "l4"
 LET.2       : "let"
 LETREC.2    : "letrec"
 IF.2        : "if"
@@ -61,8 +82,15 @@ STORE.2     : "store"
 BEGIN.2     : "begin"
 LABEL.2     : "label"
 JUMP.2      : "jump"
+CHAN.2       : "chan"
+SEND.2      : "send"
+RECV.2      : "recv"
+SPAWN.2     : "spawn"
 OP.2        : "+" | "-" | "*"
 CMP.2       : "<" | "=="
+
+CLOSE.2     : "close"
+CLOSED.2    : "closed?"
 
 IDENTIFIER  : /[a-zA-Z_][a-zA-Z0-9_]*/
 INT         : /[-]?[0-9]+/

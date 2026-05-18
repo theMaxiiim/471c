@@ -245,3 +245,68 @@ def test_cps_convert_program():
     )
 
     assert actual == expected
+
+
+def test_cps_convert_term_label():
+    term = L2.Label(
+        name="done",
+        body=L2.Reference(name="x"),
+    )
+
+    fresh = SequentialNameGenerator()
+    actual = cps_convert_term(term, k, fresh)
+
+    # label creates a continuation function bound to "done",
+    # then converts body with a continuation that calls "done"
+    expected = L1.Abstract(
+        destination="done",
+        parameters=["t0"],
+        body=L1.Halt(value="t0"),
+        then=L1.Apply(target="done", arguments=["x"]),
+    )
+
+    assert actual == expected
+
+
+def test_cps_convert_term_jump():
+    term = L2.Jump(
+        target=L2.Reference(name="done"),
+        value=L2.Reference(name="x"),
+    )
+
+    fresh = SequentialNameGenerator()
+    actual = cps_convert_term(term, k, fresh)
+
+    # jump applies the control point to the value, discarding k
+    expected = L1.Apply(target="done", arguments=["x"])
+
+    assert actual == expected
+
+
+def test_cps_convert_term_label_with_jump():
+    term = L2.Label(
+        name="done",
+        body=L2.Jump(
+            target=L2.Reference(name="done"),
+            value=L2.Immediate(value=42),
+        ),
+    )
+
+    fresh = SequentialNameGenerator()
+    actual = cps_convert_term(term, k, fresh)
+
+    # label captures k as "done", body jumps to "done" with 42
+    # jump CPS-converts target (Reference "done" -> just "done")
+    # then value (Immediate 42 -> bind to t0), then applies
+    expected = L1.Abstract(
+        destination="done",
+        parameters=["t0"],
+        body=L1.Halt(value="t0"),
+        then=L1.Immediate(
+            destination="t1",
+            value=42,
+            then=L1.Apply(target="done", arguments=["t1"]),
+        ),
+    )
+
+    assert actual == expected

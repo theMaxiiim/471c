@@ -1,10 +1,13 @@
-from L3.parse import parse_program, parse_term
-from L3.syntax import (
+from L4.parse import parse_program, parse_term
+from L4.syntax import (
     Abstract,
     Allocate,
     Apply,
     Begin,
     Branch,
+    Chan,
+    Close,
+    Closed,
     Immediate,
     Jump,
     Label,
@@ -13,7 +16,10 @@ from L3.syntax import (
     Load,
     Primitive,
     Program,
+    Recv,
     Reference,
+    Send,
+    Spawn,
     Store,
 )
 
@@ -285,20 +291,6 @@ def test_parse_begin_effects():
     assert actual == expected
 
 
-# Program
-def test_parse_program_identity():
-    source = "(l3 (x) x)"
-
-    expected = Program(
-        parameters=["x"],
-        body=Reference(name="x"),
-    )
-
-    actual = parse_program(source)
-
-    assert actual == expected
-
-
 # Label
 def test_parse_label():
     source = "(label done 42)"
@@ -323,5 +315,152 @@ def test_parse_jump():
     )
 
     actual = parse_term(source)
+
+    assert actual == expected
+
+
+# Chan
+def test_parse_chan():
+    source = "(chan)"
+    expected = Chan()
+    actual = parse_term(source)
+    assert actual == expected
+
+
+def test_parse_chan_buffered():
+    source = "(chan 3)"
+    expected = Chan(capacity=3)
+    actual = parse_term(source)
+    assert actual == expected
+
+
+# Send
+def test_parse_send():
+    source = "(send ch 42)"
+
+    expected = Send(
+        channel=Reference(name="ch"),
+        value=Immediate(value=42),
+    )
+
+    actual = parse_term(source)
+
+    assert actual == expected
+
+
+# Recv
+def test_parse_recv():
+    source = "(recv ch)"
+
+    expected = Recv(
+        channel=Reference(name="ch"),
+    )
+
+    actual = parse_term(source)
+
+    assert actual == expected
+
+
+# Spawn
+def test_parse_spawn():
+    source = "(spawn (\\ () (send ch 42)))"
+
+    expected = Spawn(
+        body=Abstract(
+            parameters=[],
+            body=Send(
+                channel=Reference(name="ch"),
+                value=Immediate(value=42),
+            ),
+        ),
+    )
+
+    actual = parse_term(source)
+
+    assert actual == expected
+
+
+# Close
+def test_parse_close():
+    source = "(close ch)"
+
+    expected = Close(
+        channel=Reference(name="ch"),
+    )
+
+    actual = parse_term(source)
+
+    assert actual == expected
+
+
+# Closed
+def test_parse_closed():
+    source = "(closed? ch)"
+
+    expected = Closed(
+        channel=Reference(name="ch"),
+    )
+
+    actual = parse_term(source)
+
+    assert actual == expected
+
+
+# Program
+def test_parse_program_identity():
+    source = "(l4 (x) x)"
+
+    expected = Program(
+        parameters=["x"],
+        body=Reference(name="x"),
+    )
+
+    actual = parse_program(source)
+
+    assert actual == expected
+
+
+def test_parse_program_chan_send_recv():
+    source = """(l4 ()
+        (let ((ch (chan)))
+            (begin
+                (send ch 42)
+                (recv ch))))"""
+
+    expected = Program(
+        parameters=[],
+        body=Let(
+            bindings=[("ch", Chan())],
+            body=Begin(
+                effects=[Send(channel=Reference(name="ch"), value=Immediate(value=42))],
+                value=Recv(channel=Reference(name="ch")),
+            ),
+        ),
+    )
+
+    actual = parse_program(source)
+
+    assert actual == expected
+
+
+def test_parse_program_close_closed():
+    source = """(l4 ()
+        (let ((ch (chan)))
+            (begin
+                (close ch)
+                (closed? ch))))"""
+
+    expected = Program(
+        parameters=[],
+        body=Let(
+            bindings=[("ch", Chan())],
+            body=Begin(
+                effects=[Close(channel=Reference(name="ch"))],
+                value=Closed(channel=Reference(name="ch")),
+            ),
+        ),
+    )
+
+    actual = parse_program(source)
 
     assert actual == expected

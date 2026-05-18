@@ -9,7 +9,7 @@ type Nat = Annotated[int, Field(ge=0)]
 
 
 class Program(BaseModel, frozen=True):
-    tag: Literal["l3"] = "l3"
+    tag: Literal["l4"] = "l4"
     parameters: Sequence[Identifier]
     body: Term
 
@@ -28,7 +28,13 @@ type Term = Annotated[
     | Begin
     | LetRec
     | Label
-    | Jump,  # nonlocal exits
+    | Jump
+    | Chan
+    | Send
+    | Recv
+    | Close
+    | Closed  # lifecycle
+    | Spawn,  # concurrency
     Field(discriminator="tag"),
 ]
 
@@ -120,3 +126,40 @@ class Jump(BaseModel, frozen=True):
     tag: Literal["jump"] = "jump"
     target: Term
     value: Term
+
+
+# concurrency ..
+
+
+class Chan(BaseModel, frozen=True):
+    tag: Literal["chan"] = "chan"
+    capacity: Nat = 0
+
+
+class Send(BaseModel, frozen=True):
+    tag: Literal["send"] = "send"
+    channel: Term
+    value: Term
+
+
+class Recv(BaseModel, frozen=True):
+    tag: Literal["recv"] = "recv"
+    channel: Term
+
+
+class Spawn(BaseModel, frozen=True):
+    tag: Literal["spawn"] = "spawn"
+    body: Term
+
+
+# minor feature #2
+
+
+class Close(BaseModel, frozen=True):
+    tag: Literal["close"] = "close"
+    channel: Term
+
+
+class Closed(BaseModel, frozen=True):
+    tag: Literal["closed"] = "closed"
+    channel: Term

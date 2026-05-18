@@ -1,0 +1,1 @@
+(l4 () (let ((ch (chan))) (begin (send ch 42) (recv ch))))

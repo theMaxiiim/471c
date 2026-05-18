@@ -5,6 +5,8 @@ from .syntax import (
     Begin,
     Branch,
     Immediate,
+    Jump,
+    Label,
     Let,
     Load,
     Primitive,
@@ -56,6 +58,12 @@ def free_variables(term: Term) -> set[str]:
             for e in effects:
                 result |= free_variables(e)
             return result
+
+        case Label(name=name, body=body):
+            return free_variables(body) - {name}
+
+        case Jump(target=target, value=value):
+            return free_variables(target) | free_variables(value)
 
 
 def substitute(term: Term, name: str, replacement: Term) -> Term:
@@ -125,6 +133,17 @@ def substitute(term: Term, name: str, replacement: Term) -> Term:
         case Begin(effects=effects, value=value):  # pragma: no branch
             return Begin(
                 effects=[substitute(e, name, replacement) for e in effects],
+                value=substitute(value, name, replacement),
+            )
+
+        case Label(name=n, body=body):
+            if n == name:
+                return term
+            return Label(name=n, body=substitute(body, name, replacement))
+
+        case Jump(target=target, value=value):
+            return Jump(
+                target=substitute(target, name, replacement),
                 value=substitute(value, name, replacement),
             )
 
@@ -230,6 +249,12 @@ def optimize_term(term: Term) -> Term:
                 effects=[optimize_term(e) for e in effects],
                 value=optimize_term(value),
             )
+
+        case Label(name=name, body=body):
+            return Label(name=name, body=optimize_term(body))
+
+        case Jump(target=target, value=value):
+            return Jump(target=optimize_term(target), value=optimize_term(value))
 
 
 def optimize_program(

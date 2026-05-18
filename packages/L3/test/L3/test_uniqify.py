@@ -5,6 +5,8 @@ from L3.syntax import (
     Begin,
     Branch,
     Immediate,
+    Jump,
+    Label,
     Let,
     LetRec,
     Load,
@@ -267,6 +269,50 @@ def test_uniqify_program():
     expected = Program(
         parameters=["x0", "y0"],
         body=Primitive(operator="+", left=Reference(name="x0"), right=Reference(name="y0")),
+    )
+
+    assert actual == expected
+
+
+# Label
+def test_uniqify_term_label():
+    term = Label(
+        name="done",
+        body=Jump(
+            target=Reference(name="done"),
+            value=Immediate(value=42),
+        ),
+    )
+
+    context: Context = dict[str, str]()
+    fresh = SequentialNameGenerator()
+    actual = uniqify_term(term, context, fresh)
+
+    expected = Label(
+        name="done0",
+        body=Jump(
+            target=Reference(name="done0"),
+            value=Immediate(value=42),
+        ),
+    )
+
+    assert actual == expected
+
+
+# Jump
+def test_uniqify_term_jump():
+    term = Jump(
+        target=Reference(name="k"),
+        value=Reference(name="x"),
+    )
+
+    context: Context = {"k": "k0", "x": "x0"}
+    fresh = SequentialNameGenerator()
+    actual = uniqify_term(term, context, fresh)
+
+    expected = Jump(
+        target=Reference(name="k0"),
+        value=Reference(name="x0"),
     )
 
     assert actual == expected
