@@ -472,3 +472,47 @@ def test_optimize_program_fixed_point():
     assert optimize_program(immediate_program) == immediate_program
     assert optimize_program(reference_program) == reference_program
     assert optimize_program(allocate_program) == allocate_program
+
+
+def test_optimize_term_dce_non_propagatable_dead():
+    actual = optimize_term(
+        Let(
+            bindings=[("x", Primitive(operator="+", left=Reference(name="a"), right=Immediate(value=1)))],
+            body=Immediate(value=0),
+        )
+    )
+    assert actual == Immediate(value=0)
+
+
+def test_optimize_term_dce_mixed_live_and_dead():
+    actual = optimize_term(
+        Let(
+            bindings=[
+                ("x", Primitive(operator="+", left=Reference(name="a"), right=Immediate(value=1))),
+                ("y", Primitive(operator="*", left=Reference(name="a"), right=Immediate(value=2))),
+            ],
+            body=Reference(name="y"),
+        )
+    )
+    assert actual == Let(
+        bindings=[("y", Primitive(operator="*", left=Reference(name="a"), right=Immediate(value=2)))],
+        body=Reference(name="y"),
+    )
+
+
+def test_optimize_term_let_propagate_rebinding():
+    actual = optimize_term(
+        Let(
+            bindings=[
+                ("x", Immediate(value=1)),
+                ("x", Primitive(operator="+", left=Reference(name="a"), right=Immediate(value=2))),
+            ],
+            body=Reference(name="x"),
+        )
+    )
+    assert actual == Let(
+        bindings=[
+            ("x", Primitive(operator="+", left=Reference(name="a"), right=Immediate(value=2))),
+        ],
+        body=Reference(name="x"),
+    )

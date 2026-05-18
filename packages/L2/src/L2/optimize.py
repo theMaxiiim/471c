@@ -62,7 +62,7 @@ def free_variables(term: Term) -> set[str]:
         case Label(name=name, body=body):
             return free_variables(body) - {name}
 
-        case Jump(target=target, value=value):
+        case Jump(target=target, value=value):  # pragma: no branch
             return free_variables(target) | free_variables(value)
 
 
@@ -141,7 +141,7 @@ def substitute(term: Term, name: str, replacement: Term) -> Term:
                 return term
             return Label(name=n, body=substitute(body, name, replacement))
 
-        case Jump(target=target, value=value):
+        case Jump(target=target, value=value):  # pragma: no branch
             return Jump(
                 target=substitute(target, name, replacement),
                 value=substitute(value, name, replacement),
@@ -253,7 +253,7 @@ def optimize_term(term: Term) -> Term:
         case Label(name=name, body=body):
             return Label(name=name, body=optimize_term(body))
 
-        case Jump(target=target, value=value):
+        case Jump(target=target, value=value):  # pragma: no branch
             return Jump(target=optimize_term(target), value=optimize_term(value))
 
 

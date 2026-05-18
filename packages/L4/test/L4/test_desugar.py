@@ -122,7 +122,7 @@ def test_desugar_jump():
 def test_desugar_chan():
     result = desugar_term(L4.Chan())
     assert isinstance(result, L3.Let)
-    assert result.bindings[0][1] == L3.Allocate(count=4)
+    assert result.bindings[0][1] == L3.Allocate(count=6)
 
 
 # -- send --

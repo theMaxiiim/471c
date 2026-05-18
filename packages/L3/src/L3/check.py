@@ -117,7 +117,7 @@ def check_term(
         case Label(name=name, body=body):
             recur(body, context={**context, name: None})
 
-        case Jump(target=target, value=value):
+        case Jump(target=target, value=value):  # pragma: no branch
             recur(target)
             recur(value)
 

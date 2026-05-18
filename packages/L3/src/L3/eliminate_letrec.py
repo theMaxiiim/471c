@@ -93,7 +93,7 @@ def eliminate_letrec_term(
                 body=eliminate_letrec_term(body, {**context, name: False}),
             )
 
-        case L3.Jump(target=target, value=value):
+        case L3.Jump(target=target, value=value):  # pragma: no branch
             return L2.Jump(target=recur(target), value=recur(value))
 
 

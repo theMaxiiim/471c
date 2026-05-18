@@ -103,7 +103,7 @@ def uniqify_term(
                 body=uniqify_term(body, new_context, fresh),
             )
 
-        case Jump(target=target, value=value):
+        case Jump(target=target, value=value):  # pragma: no branch
             return Jump(target=_term(target), value=_term(value))
 
 
